@@ -8,6 +8,7 @@
       <img
         v-if="loadedImg"
         ref="image"
+        :key="realSrc"
         :src="realSrc"
         :style="{...imageStyle}"
       >
@@ -36,6 +37,7 @@ export default {
       originRatio: '',
       originTransform: '',
       baseWidth: '',
+      minImgWidth: '',
 
       // 衍生信息
       loadedImg: false,
@@ -77,6 +79,7 @@ export default {
         width: `${baseWidth}px`,
         transform: originTransform,
       };
+      this.minImgWidth = imageClientRect.width;
       this.originRatio = originRatio;
       this.baseWidth = baseWidth;
       this.originTransform = originTransform;
@@ -109,15 +112,18 @@ export default {
       });
     },
     getTransform() {
-      const { baseWidth, originRatio } = this;
+      const { baseWidth, originRatio, minImgWidth } = this;
       const { naturalWidth } = this.$refs.image;
 
       const documentoffsetWidth = document.documentElement.offsetWidth;
       const documentoffsetHeight = document.documentElement.offsetHeight;
-
       // 图片最后宽度
-      const afterWidth = Math.min(documentoffsetWidth - 20, naturalWidth, IMAGE_MAX_WIDTH);
+      let afterWidth = Math.min(documentoffsetWidth - 20, naturalWidth / 2, IMAGE_MAX_WIDTH);
 
+      if (afterWidth < minImgWidth) {
+        afterWidth = minImgWidth;
+      }
+      
       // 图片最后高度
       const afterHeight = afterWidth / originRatio;
 
@@ -143,7 +149,9 @@ export default {
       }, 0);
     },
     onClose() {
-      this.imgViewRef.classList.remove('is-active');
+      if (this.imgViewRef && this.imgViewRef.classList) {
+        this.imgViewRef.classList.remove('is-active');
+      }
       this.imageStyle = {
         ...this.imageStyle,
         transform: this.originTransform,

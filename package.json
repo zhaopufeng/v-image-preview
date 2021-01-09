@@ -1,6 +1,6 @@
 {
-  "name": "vue-image-preview",
-  "version": "0.0.1",
+  "name": "v-image-preview",
+  "version": "0.0.2",
   "description": "",
   "main": "index.js",
   "scripts": {

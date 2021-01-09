@@ -88,7 +88,7 @@ const test = {
         target: el,
       });
     });
-  },
+  }, 
 };
 
 Dialog.install = () => {

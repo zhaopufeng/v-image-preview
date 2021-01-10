@@ -3,6 +3,7 @@
     ref="imgViewWrap"
     class="image-view-wrap"
     @click="onClose"
+    :style="{...wrapStyle}"
   >
     <div class="image-view-inner">
       <img
@@ -16,9 +17,11 @@
   </div>
 </template>
 <script>
-const WAIT_TIME = 1000; // 等待图片加载时间
-const IMAGE_MAX_WIDTH = 400; // 图片最大宽度
-const IMAGE_TRANSITION_DURATION = 300; // 图片动画时间
+
+const DEFAULT_ANIMA_DURATION = 300;
+const DEFAULT_MAX_WAIT_TIME = 1000;
+const DEFAULT_IMG_MAX_WIDTH = 0;
+const DEFAULT_MASK_BACKGROUND = 'rgba(18, 18, 18, 0.65)';
 
 export default {
   props: {
@@ -29,6 +32,30 @@ export default {
     target: {
       type: HTMLImageElement,
       required: true,
+    },
+    // 遮罩背景
+    maskBackground: {
+      type: String,
+      dafault: DEFAULT_MASK_BACKGROUND,
+      required: false,
+    },
+    // 动画持续时间
+    animaDuration: {
+      type: Number,
+      dafault: DEFAULT_ANIMA_DURATION,
+      required: false,
+    },
+    // 图片最大宽度
+    imgMaxWidth: {
+      type: Number,
+      dafault: DEFAULT_IMG_MAX_WIDTH,
+      required: false,
+    },
+    // 之前使用的懒加载，请求真实图片最大等待时间
+    maxWaitTime: {
+      type: Number,
+      dafault: DEFAULT_MAX_WAIT_TIME,
+      required: false,
     },
   },
   data() {
@@ -45,45 +72,82 @@ export default {
       imageStyle: {
         transformOrigin: '0 0',
       },
+      wrapStyle: {
+        '-webkit-transition': `background-color ${this.animaDurationSec} ease-in-out`,
+        transition: `background-color ${this.animaDurationSec} ease-in-out`,
+      }
     };
   },
   computed: {
-
+    animaDurationSec() {
+      return Math.round(this.animaDuration / 1000)
+    }  
   },
   beforeMount() {
     this.getOriginTransform();
+    this.setWrapStyle();
   },
   async mounted() {
     await this.loadImage();
     this.getAnimation();
   },
   methods: {
+    insertCSS(newStyle) {
+      const newElement = document.createElement("style");
+      newElement.innerHTML = newStyle;
+      document.body.appendChild(newElement);
+    },
+    setWrapStyle() {
+      this.wrapStyle = {
+        ...this.wrapStyle,
+        '-webkit-transition': `background-color ${DEFAULT_ANIMA_DURATION/1000} ease-in-out`,
+        transition: `background-color ${DEFAULT_ANIMA_DURATION/1000} ease-in-out`,
+      }
+     this.insertCSS(`.image-view-wrap.is-active{ background-color: ${this.maskBackground}; }`)
+    },
     getOriginTransform() {
+      const { animaDurationSec } = this;
       const imageClientRect = this.target.getClientRects()[0];
-      const { naturalWidth, naturalHeight } = this.target;
-
+      const { naturalWidth, naturalHeight, width, height, left, top } = this.target;
+      
       // 原始比例
       const originRatio = naturalWidth / naturalHeight;
 
       // 基准宽度
-      const baseWidth = Math.min(690, naturalWidth, IMAGE_MAX_WIDTH);
+      const baseWidth = getMinWidth(690, naturalWidth)
+      // x轴恢复比例
+      const originScaleX = width / baseWidth;
 
-      const originScaleX = imageClientRect.width / baseWidth;
+      // 基准高度
       const baseHeight = baseWidth / originRatio;
-      const originScaleY = imageClientRect.height / baseHeight;
+      // y轴恢复比例
+      const originScaleY = height / baseHeight;
 
-      const originTransform = `translate3d(${imageClientRect.left}px, ${imageClientRect.top}px, 0px) scale3d(${originScaleX}, ${originScaleY}, 1)`;
+      // 恢复transform
+      const originTransform = `translate3d(${left}px, ${top}px, 0px) scale3d(${originScaleX}, ${originScaleY}, 1)`;
 
       this.imageStyle = {
         ...this.imageStyle,
+        transition: `transform ${animaDurationSec} ease-in-out, -webkit-transform ${animaDurationSec} ease-in-out`,
+        '-webkit-transition': `-webkit-transform ${animaDurationSec} ease-in-out`,
         width: `${baseWidth}px`,
         transform: originTransform,
+
       };
-      this.minImgWidth = imageClientRect.width;
+      this.minImgWidth = width;
       this.originRatio = originRatio;
       this.baseWidth = baseWidth;
       this.originTransform = originTransform;
       this.realSrc = this.src.split('?')[0];
+    },
+    getMinWidth(...args){
+      let res = Math.min(args);
+
+      if (this.imgMaxWidth !== 0) {
+        res = Math.min(res, this.imgMaxWidth);
+      }
+
+      return res;
     },
     getAnimation() {
       this.imgViewRef = this.$refs.imgViewWrap;
@@ -108,7 +172,7 @@ export default {
             this.loadedImg = true;
           }
           resolve();
-        }, WAIT_TIME);
+        }, this.maxWaitTime);
       });
     },
     getTransform() {
@@ -118,7 +182,7 @@ export default {
       const documentoffsetWidth = document.documentElement.offsetWidth;
       const documentoffsetHeight = document.documentElement.offsetHeight;
       // 图片最后宽度
-      let afterWidth = Math.min(documentoffsetWidth - 20, naturalWidth / 2, IMAGE_MAX_WIDTH);
+      let afterWidth = getMinWidth(documentoffsetWidth - 20, naturalWidth / 2);
 
       if (afterWidth < minImgWidth) {
         afterWidth = minImgWidth;
@@ -159,14 +223,12 @@ export default {
       setTimeout(() => {
         document.body.style = '';
         this.$emit('close');
-      }, IMAGE_TRANSITION_DURATION);
+      }, this.animaDuration);
     },
   },
 };
 </script>
 <style scoped lang='scss'>
-$backgroundColor-transition-duration: 0.2s;
-$imageSize-transition-duration: 0.3s;
 
 .image-view-wrap {
   position: fixed;
@@ -177,12 +239,6 @@ $imageSize-transition-duration: 0.3s;
   z-index: 101;
   overflow: hidden;
   padding-bottom: 10px;
-  -webkit-transition: background-color $backgroundColor-transition-duration
-    ease-in-out;
-  transition: background-color $backgroundColor-transition-duration ease-in-out;
-  &.is-active {
-    background-color: rgba(18, 18, 18, 0.65);
-  }
   .image-view-inner {
     height: 100%;
     -webkit-box-sizing: border-box;
@@ -192,12 +248,6 @@ $imageSize-transition-duration: 0.3s;
     img {
       cursor: -webkit-zoom-out;
       cursor: zoom-out;
-      -webkit-transition: -webkit-transform $imageSize-transition-duration
-        ease-in-out;
-      transition: -webkit-transform $imageSize-transition-duration ease-in-out;
-      transition: transform $imageSize-transition-duration ease-in-out;
-      transition: transform $imageSize-transition-duration ease-in-out,
-        -webkit-transform $imageSize-transition-duration ease-in-out;
     }
   }
 }

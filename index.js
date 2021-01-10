@@ -1,12 +1,19 @@
 import Vue from 'vue';
 import ImageDialog from './src/preview.vue';
+
 let instance;
+let userOptions = {};
 
 function isInDocument(element) {
   return document.body.contains(element);
 }
 
 function initInstance(options) {
+
+  if (!options.src) {
+    return;
+  }
+
   if (instance) {
     instance.$destory();
   }
@@ -15,11 +22,24 @@ function initInstance(options) {
   // 先appendChild，再用new创建实例
   document.body.appendChild(dialogDiv);
 
+  const { 
+    src, 
+    target, 
+    maskBackground,
+    animaDuration,
+    imgMaxWidth,
+    maxWaitTime
+  } = options;
+
   instance = new (Vue.extend(ImageDialog))({
     el: dialogDiv,
     propsData: {
-      src: options.src,
-      target: options.target,
+      src, 
+      target, 
+      maskBackground,
+      animaDuration,
+      imgMaxWidth,
+      maxWaitTime
     },
   });
 
@@ -44,6 +64,7 @@ function Dialog(options) {
 Dialog.defaultOptions = {
 
 };
+
 function close() {
   instance.$destroy();
   document.body.removeChild(instance.$el);
@@ -86,12 +107,14 @@ const test = {
       Dialog({
         src: el.src,
         target: el,
+        ...userOptions,
       });
     });
   }, 
 };
 
-Dialog.install = () => {
+Dialog.install = (Vue, options) => {
+  userOptions = options || {};
   Vue.directive('preview', test);
 };
 

@@ -72,20 +72,22 @@ export default {
       imageStyle: {
         transformOrigin: '0 0',
       },
-      wrapStyle: {
-        '-webkit-transition': `background-color ${this.animaDurationSec} ease-in-out`,
-        transition: `background-color ${this.animaDurationSec} ease-in-out`,
-      }
     };
   },
   computed: {
     animaDurationSec() {
       return Math.round(this.animaDuration / 1000)
-    }  
+    },
+    wrapStyle() {
+      return {
+        '-webkit-transition': `background-color ${this.animaDurationSec} ease-in-out`,
+        transition: `background-color ${this.animaDurationSec} ease-in-out`,
+      }
+    }
   },
   beforeMount() {
     this.getOriginTransform();
-    this.setWrapStyle();
+    this.setWrapActiveStyle();
   },
   async mounted() {
     await this.loadImage();
@@ -97,12 +99,7 @@ export default {
       newElement.innerHTML = newStyle;
       document.body.appendChild(newElement);
     },
-    setWrapStyle() {
-      this.wrapStyle = {
-        ...this.wrapStyle,
-        '-webkit-transition': `background-color ${DEFAULT_ANIMA_DURATION/1000} ease-in-out`,
-        transition: `background-color ${DEFAULT_ANIMA_DURATION/1000} ease-in-out`,
-      }
+    setWrapActiveStyle() {
      this.insertCSS(`.image-view-wrap.is-active{ background-color: ${this.maskBackground}; }`)
     },
     getOriginTransform() {
